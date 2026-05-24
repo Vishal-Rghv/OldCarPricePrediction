@@ -56,7 +56,7 @@ OldCarPricePrediction/
 
 ---
 
-## ▶ How to Run
+##  How to Run
 
 Install required libraries:
 
