@@ -1,4 +1,4 @@
-#  Used Car Price Prediction
+#  Old Car Price Prediction
 
 This is a Machine Learning project that predicts the resale price of old cars using different car features.
 
@@ -56,7 +56,7 @@ OldCarPricePrediction/
 
 ---
 
-## ▶ How to Run
+##  How to Run
 
 Install required libraries:
 
