@@ -1,50 +1,96 @@
 import pandas as pd
 import pickle
-from sklearn.preprocessing import LabelEncoder
+
 from sklearn.model_selection import train_test_split
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import OneHotEncoder
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 
 
-dataset = pd.read_csv("CarPrediction.csv")
-dataset["Engine"] = dataset["Engine"].fillna(dataset["Engine"].mode()[0])
+# Load dataset
+dataset = pd.read_csv("OldCarPriceData.csv")
 
-Car_name_le = LabelEncoder()
-Location_le = LabelEncoder()
-Owner_Type_le = LabelEncoder()
-Engine_le = LabelEncoder()
 
-dataset["Car_name"] = Car_name_le.fit_transform(dataset["Car_name"])
-dataset["Location"] = Location_le.fit_transform(dataset["Location"])
-dataset["Owner_Type"] = Owner_Type_le.fit_transform(dataset["Owner_Type"])
-dataset["Engine"] = Engine_le.fit_transform(dataset["Engine"])
+# Separate features and target
+X = dataset.drop("Price", axis=1)
+y = dataset["Price"]
 
-dataset = pd.get_dummies(dataset, columns=["Fuel_Type", "Transmission"])
 
-X = dataset.drop(columns=["Price"])
-Y = dataset["Price"]
+# Separate columns
+categorical_columns = X.select_dtypes(include=["object"]).columns
+numerical_columns = X.select_dtypes(exclude=["object"]).columns
 
-x_train, x_test, y_train, y_test = train_test_split(
-    X, Y, test_size=0.2, random_state=42
+
+# Numerical preprocessing
+numerical_transformer = Pipeline(
+    steps=[
+        ("imputer", SimpleImputer(strategy="median"))
+    ]
 )
 
-model = RandomForestRegressor(random_state=42)
-model.fit(x_train, y_train)
 
-print("Test Score:", model.score(x_test, y_test) * 100)
-print("Train Score:", model.score(x_train, y_train) * 100)
+# Categorical preprocessing
+categorical_transformer = Pipeline(
+    steps=[
+        ("imputer", SimpleImputer(strategy="most_frequent")),
+        ("encoder", OneHotEncoder(handle_unknown="ignore"))
+    ]
+)
 
 
-prediction = model.predict(x_test)
+# Combine preprocessing
+preprocessor = ColumnTransformer(
+    transformers=[
+        ("num", numerical_transformer, numerical_columns),
+        ("cat", categorical_transformer, categorical_columns)
+    ]
+)
+
+
+# Create final pipeline
+model = Pipeline(
+    steps=[
+        ("preprocessor", preprocessor),
+        ("regressor", RandomForestRegressor(random_state=42))
+    ]
+)
+
+
+# Split data
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.2,
+    random_state=42
+)
+
+
+# Train model
+model.fit(X_train, y_train)
+
+
+# Evaluation
+
+train_score = model.score(X_train, y_train)
+test_score = model.score(X_test, y_test)
+
+print("Train R2:", train_score)
+print("Test R2:", test_score)
+
+
+prediction = model.predict(X_test)
+
 print("MSE:", mean_squared_error(y_test, prediction))
 print("MAE:", mean_absolute_error(y_test, prediction))
 
-pickle.dump(model, open(r"D:\CarpredictionApp\car_model.pkl", "wb"))
-pickle.dump(X.columns, open(r"D:\CarpredictionApp\model_columns.pkl", "wb"))
 
-pickle.dump(Car_name_le, open(r"D:\CarpredictionApp\car_encoder.pkl", "wb"))
-pickle.dump(Location_le, open(r"D:\CarpredictionApp\location_encoder.pkl", "wb"))
-pickle.dump(Owner_Type_le, open(r"D:\CarpredictionApp\owner_encoder.pkl", "wb"))
-pickle.dump(Engine_le, open(r"D:\CarpredictionApp\engine_encoder.pkl", "wb"))
+# Save complete pipeline
 
-print("All files saved successfully")
+with open("car_model.pkl", "wb") as file:
+    pickle.dump(model, file)
+
+
+print("Model saved successfully")
